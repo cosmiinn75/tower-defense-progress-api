@@ -1,0 +1,93 @@
+package com.cosmin.tower_defense_progress_api.progress;
+
+import com.cosmin.tower_defense_progress_api.dto.LevelProgressResponse;
+import com.cosmin.tower_defense_progress_api.dto.PlayerProgressResponse;
+import com.cosmin.tower_defense_progress_api.dto.UpdateLevelRequest;
+import com.cosmin.tower_defense_progress_api.levelProgress.LevelProgress;
+import com.cosmin.tower_defense_progress_api.levelProgress.LevelProgressRepository;
+import com.cosmin.tower_defense_progress_api.playerProgress.PlayerProgress;
+import com.cosmin.tower_defense_progress_api.playerProgress.PlayerProgressRepository;
+
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
+
+import java.util.List;
+
+
+@Service
+public class ProgressService {
+    private final LevelProgressRepository levelProgressRepository;
+    private final PlayerProgressRepository playerProgressRepository;
+
+
+    public ProgressService(LevelProgressRepository levelProgressRepository, PlayerProgressRepository playerProgressRepository) {
+        this.levelProgressRepository = levelProgressRepository;
+        this.playerProgressRepository = playerProgressRepository;
+    }
+
+    public PlayerProgressResponse getProgress(){
+        String username = getCurrentUsername();
+
+        PlayerProgress playerProgress = playerProgressRepository.findByUserUsername(username)
+                .orElseThrow(()-> new RuntimeException("Player progress not found"));
+
+        List<LevelProgress> levels = levelProgressRepository.findByUserUsernameOrderByLevelNumberAsc(username);
+
+        return fromPlayerToResponse(playerProgress,levels);
+
+    }
+
+    public PlayerProgressResponse updateLevel(Integer levelNumber, UpdateLevelRequest updateLevelRequest){
+        String username = getCurrentUsername();
+
+        if(levelNumber < 1 || levelNumber > 10){
+            throw new RuntimeException("Invalid number");
+        }
+
+        if(updateLevelRequest.stars() < 1 || updateLevelRequest.stars() > 3) {
+            throw  new RuntimeException("Stars must be between 1 and 3");
+        }
+        PlayerProgress playerProgress = playerProgressRepository.findByUserUsername(username)
+                .orElseThrow(() -> new RuntimeException("Player progress not found"));
+
+        if(levelNumber > playerProgress.getMaxLevelUnlocked()) {
+            throw new RuntimeException("Level is locked");
+        }
+
+        LevelProgress levelProgress = levelProgressRepository.findByUserUsernameAndLevelNumber(username,levelNumber)
+                .orElseThrow(() -> new RuntimeException("Level progress not found"));
+
+        if(updateLevelRequest.stars() > levelProgress.getStarUnlocked()) {
+            levelProgress.setStarUnlocked(updateLevelRequest.stars());
+            levelProgressRepository.save(levelProgress);
+        }
+
+        if(levelNumber.equals(playerProgress.getMaxLevelUnlocked()) && playerProgress.getMaxLevelUnlocked() < 10) {
+            playerProgress.setMaxLevelUnlocked(playerProgress.getMaxLevelUnlocked() + 1);
+            playerProgressRepository.save(playerProgress);
+        }
+        List<LevelProgress> levels = levelProgressRepository.findByUserUsernameOrderByLevelNumberAsc(username);
+        return fromPlayerToResponse(playerProgress,levels);
+
+    }
+
+
+
+
+
+    private PlayerProgressResponse fromPlayerToResponse(PlayerProgress playerProgress , List<LevelProgress> levels) {
+
+        List<LevelProgressResponse> responses = levels.stream()
+                .map(level -> new LevelProgressResponse(
+                        level.getLevelNumber(),level.getStarUnlocked()
+                ))
+                .toList();
+        return new PlayerProgressResponse(playerProgress.getMaxLevelUnlocked(), responses);
+    }
+
+
+    private String  getCurrentUsername(){
+        return SecurityContextHolder.getContext().getAuthentication().getName();
+    }
+}
