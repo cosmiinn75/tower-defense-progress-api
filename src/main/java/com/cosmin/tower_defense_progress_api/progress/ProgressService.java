@@ -9,6 +9,7 @@ import com.cosmin.tower_defense_progress_api.levelProgress.LevelProgressReposito
 import com.cosmin.tower_defense_progress_api.playerProgress.PlayerProgress;
 import com.cosmin.tower_defense_progress_api.playerProgress.PlayerProgressRepository;
 
+import jakarta.transaction.Transactional;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -71,7 +72,22 @@ public class ProgressService {
 
     }
 
+    @Transactional
+    public PlayerProgressResponse resetProgress(){
+        String username = getCurrentUsername();
+        PlayerProgress playerProgress = playerProgressRepository.findByUserUsername(username)
+                .orElseThrow(() -> new PlayerProgressNotFoundException("Player progress not found"));
 
+        playerProgress.setMaxLevelUnlocked(1);
+        List<LevelProgress> levels = levelProgressRepository.findByUserUsernameOrderByLevelNumberAsc(username);
+
+        for(LevelProgress levelProgress : levels){
+            levelProgress.setStarUnlocked(0);
+        }
+        playerProgressRepository.save(playerProgress);
+        levelProgressRepository.saveAll(levels);
+        return fromPlayerToResponse(playerProgress,levels);
+    }
 
 
 

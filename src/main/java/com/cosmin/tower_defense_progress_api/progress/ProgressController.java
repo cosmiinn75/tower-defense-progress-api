@@ -27,4 +27,9 @@ public class ProgressController {
         return progressService.updateLevel(levelNumber,request);
     }
 
+    @PostMapping("/progress/reset")
+    public PlayerProgressResponse resetProgress() {
+        return progressService.resetProgress();
+    }
+
 }
