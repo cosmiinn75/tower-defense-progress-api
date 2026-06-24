@@ -2,6 +2,8 @@ package com.cosmin.tower_defense_progress_api.user;
 
 import com.cosmin.tower_defense_progress_api.dto.AuthRequest;
 import com.cosmin.tower_defense_progress_api.dto.AuthResponse;
+import com.cosmin.tower_defense_progress_api.exception.ExistingUsernameException;
+import com.cosmin.tower_defense_progress_api.exception.InvalidCredentialsException;
 import com.cosmin.tower_defense_progress_api.levelProgress.LevelProgress;
 import com.cosmin.tower_defense_progress_api.levelProgress.LevelProgressRepository;
 import com.cosmin.tower_defense_progress_api.playerProgress.PlayerProgress;
@@ -32,9 +34,9 @@ public class AuthService {
 
     public AuthResponse loginUser(AuthRequest request) {
         User user = userRepository.findByUsername(request.username())
-                .orElseThrow(()-> new RuntimeException("Invalid username or password"));
+                .orElseThrow(()-> new InvalidCredentialsException("Invalid username or password"));
         if(!passwordEncoder.matches(request.password(),user.getPassword())){
-            throw new RuntimeException("Invalid username or password");
+            throw new InvalidCredentialsException("Invalid username or password");
         }
 
         return new AuthResponse(jWTUtil.generateToken(user.getUsername()));
@@ -46,7 +48,7 @@ public class AuthService {
         Optional<User> userOptional = userRepository.findByUsername(request.username());
 
         if(userOptional.isPresent()){
-            throw new RuntimeException("Username already exists");
+            throw new ExistingUsernameException("Username already exists");
         }
 
         User user = new User();

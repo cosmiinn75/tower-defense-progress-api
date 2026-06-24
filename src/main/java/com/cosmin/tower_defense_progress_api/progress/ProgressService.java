@@ -3,6 +3,7 @@ package com.cosmin.tower_defense_progress_api.progress;
 import com.cosmin.tower_defense_progress_api.dto.LevelProgressResponse;
 import com.cosmin.tower_defense_progress_api.dto.PlayerProgressResponse;
 import com.cosmin.tower_defense_progress_api.dto.UpdateLevelRequest;
+import com.cosmin.tower_defense_progress_api.exception.*;
 import com.cosmin.tower_defense_progress_api.levelProgress.LevelProgress;
 import com.cosmin.tower_defense_progress_api.levelProgress.LevelProgressRepository;
 import com.cosmin.tower_defense_progress_api.playerProgress.PlayerProgress;
@@ -10,6 +11,7 @@ import com.cosmin.tower_defense_progress_api.playerProgress.PlayerProgressReposi
 
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 
 
 import java.util.List;
@@ -30,7 +32,7 @@ public class ProgressService {
         String username = getCurrentUsername();
 
         PlayerProgress playerProgress = playerProgressRepository.findByUserUsername(username)
-                .orElseThrow(()-> new RuntimeException("Player progress not found"));
+                .orElseThrow(()-> new PlayerProgressNotFoundException("Player progress not found"));
 
         List<LevelProgress> levels = levelProgressRepository.findByUserUsernameOrderByLevelNumberAsc(username);
 
@@ -42,21 +44,18 @@ public class ProgressService {
         String username = getCurrentUsername();
 
         if(levelNumber < 1 || levelNumber > 10){
-            throw new RuntimeException("Invalid number");
+            throw new InvalidLevelException("Level number must be between 1 and 10");
         }
 
-        if(updateLevelRequest.stars() < 1 || updateLevelRequest.stars() > 3) {
-            throw  new RuntimeException("Stars must be between 1 and 3");
-        }
         PlayerProgress playerProgress = playerProgressRepository.findByUserUsername(username)
-                .orElseThrow(() -> new RuntimeException("Player progress not found"));
+                .orElseThrow(() -> new PlayerProgressNotFoundException("Player progress not found"));
 
         if(levelNumber > playerProgress.getMaxLevelUnlocked()) {
-            throw new RuntimeException("Level is locked");
+            throw new LevelLockedException("Level is locked");
         }
 
         LevelProgress levelProgress = levelProgressRepository.findByUserUsernameAndLevelNumber(username,levelNumber)
-                .orElseThrow(() -> new RuntimeException("Level progress not found"));
+                .orElseThrow(() -> new LevelProgressNotFoundException("Level progress not found"));
 
         if(updateLevelRequest.stars() > levelProgress.getStarUnlocked()) {
             levelProgress.setStarUnlocked(updateLevelRequest.stars());
